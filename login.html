@@ -376,14 +376,16 @@
     };
 
     // ═══════════════════════════════════════════════════
-    // Animated Background — sharp, vivid, no blur
-    // Colorful geometric shapes with hard edges so
-    // the liquid glass refraction is clearly visible
+    // Animated Background — simple colorful dots
+    // Dots drift slowly and float away from the mouse
     // ═══════════════════════════════════════════════════
     function initBackground() {
       var canvas = document.getElementById('bg-canvas');
       var ctx = canvas.getContext('2d');
       var W, H;
+      var mouseX = -9999, mouseY = -9999;
+      var MOUSE_RADIUS = 180;   // influence radius in px
+      var MOUSE_FORCE = 0.6;    // repulsion strength
 
       function resize() {
         W = canvas.width = window.innerWidth;
@@ -392,62 +394,39 @@
       resize();
       window.addEventListener('resize', resize);
 
-      // Colorful circles — solid fill, no blur, slow drift
-      var circles = [];
-      var colors = [
-        '#ff2878', '#3c78ff', '#8c32ff', '#00dcc8',
-        '#ffa028', '#32ff82', '#ff50dc', '#1e50ff',
-        '#ff4444', '#44ff44', '#ffff00', '#ff8800'
+      document.addEventListener('mousemove', function(e) {
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+      });
+      document.addEventListener('mouseleave', function() {
+        mouseX = -9999;
+        mouseY = -9999;
+      });
+
+      // Soft pastel-ish colors that look good on dark background
+      var palette = [
+        '#ff6b8a', '#ff9a76', '#ffd36e', '#7bed9f',
+        '#70a1ff', '#a29bfe', '#fd79a8', '#00cec9',
+        '#e17055', '#6c5ce7', '#00b894', '#fdcb6e'
       ];
-      for (var i = 0; i < 18; i++) {
-        circles.push({
-          x: Math.random(), y: Math.random(),
-          r: 30 + Math.random() * 60,
-          color: colors[i % colors.length],
-          vx: (Math.random() - 0.5) * 0.0004,
-          vy: (Math.random() - 0.5) * 0.0004,
-          phase: Math.random() * Math.PI * 2
-        });
-      }
 
-      // Floating rings — hollow circles with thick stroke
-      var rings = [];
-      for (var r = 0; r < 10; r++) {
-        rings.push({
-          x: Math.random(), y: Math.random(),
-          r: 40 + Math.random() * 50,
-          color: colors[(r + 4) % colors.length],
-          vx: (Math.random() - 0.5) * 0.0003,
-          vy: (Math.random() - 0.5) * 0.0003,
-          lw: 3 + Math.random() * 4
-        });
-      }
-
-      // Small dots — dense, creating a pattern
+      var COUNT = 160;
       var dots = [];
-      for (var d = 0; d < 120; d++) {
+      for (var i = 0; i < COUNT; i++) {
         dots.push({
-          x: Math.random(), y: Math.random(),
-          r: 2 + Math.random() * 4,
-          color: colors[Math.floor(Math.random() * colors.length)],
-          vx: (Math.random() - 0.5) * 0.0003,
-          vy: (Math.random() - 0.5) * 0.0003
-        });
-      }
-
-      // Diagonal stripes (drawn as thick lines)
-      var stripes = [];
-      for (var s = 0; s < 8; s++) {
-        stripes.push({
-          y: Math.random(),
-          color: colors[(s + 2) % colors.length],
-          lw: 8 + Math.random() * 12,
-          speed: 0.00005 + Math.random() * 0.0001,
+          // current position (absolute px)
+          x: Math.random() * (W || window.innerWidth),
+          y: Math.random() * (H || window.innerHeight),
+          // base velocity — slow random drift
+          vx: (Math.random() - 0.5) * 0.35,
+          vy: (Math.random() - 0.5) * 0.35,
+          // appearance — bigger dots for visible refraction
+          r: 15 + Math.random() * 40,
+          color: palette[i % palette.length],
+          alpha: 0.55 + Math.random() * 0.35,
           phase: Math.random() * Math.PI * 2
         });
       }
-
-      function wrap(v) { return ((v % 1) + 1) % 1; }
 
       function draw() {
         var t = performance.now();
@@ -456,69 +435,43 @@
         ctx.fillStyle = '#0a0a1a';
         ctx.fillRect(0, 0, W, H);
 
-        // 1. Diagonal stripes — large colorful bands
-        ctx.save();
-        ctx.globalAlpha = 0.6;
-        for (var si = 0; si < stripes.length; si++) {
-          var st = stripes[si];
-          var sy = wrap(st.y + t * st.speed) * H;
-          ctx.strokeStyle = st.color;
-          ctx.lineWidth = st.lw;
-          ctx.beginPath();
-          ctx.moveTo(0, sy);
-          ctx.lineTo(W, sy - W * 0.3 + Math.sin(t * 0.0003 + st.phase) * 40);
-          ctx.stroke();
-        }
-        ctx.globalAlpha = 1;
-        ctx.restore();
+        for (var i = 0; i < dots.length; i++) {
+          var d = dots[i];
 
-        // 2. Solid circles — hard-edged, vivid
-        for (var ci = 0; ci < circles.length; ci++) {
-          var c = circles[ci];
-          c.x = wrap(c.x + c.vx);
-          c.y = wrap(c.y + c.vy);
-          var pulse = 1 + 0.15 * Math.sin(t * 0.002 + c.phase);
-          ctx.beginPath();
-          ctx.arc(c.x * W, c.y * H, c.r * pulse, 0, Math.PI * 2);
-          ctx.fillStyle = c.color;
-          ctx.fill();
-        }
-
-        // 3. Rings — hollow circles for extra contrast
-        for (var ri = 0; ri < rings.length; ri++) {
-          var rn = rings[ri];
-          rn.x = wrap(rn.x + rn.vx);
-          rn.y = wrap(rn.y + rn.vy);
-          ctx.beginPath();
-          ctx.arc(rn.x * W, rn.y * H, rn.r, 0, Math.PI * 2);
-          ctx.strokeStyle = rn.color;
-          ctx.lineWidth = rn.lw;
-          ctx.stroke();
-        }
-
-        // 4. Small dots — dense colorful pattern
-        for (var di = 0; di < dots.length; di++) {
-          var dt = dots[di];
-          dt.x = wrap(dt.x + dt.vx);
-          dt.y = wrap(dt.y + dt.vy);
-          ctx.beginPath();
-          ctx.arc(dt.x * W, dt.y * H, dt.r, 0, Math.PI * 2);
-          ctx.fillStyle = dt.color;
-          ctx.fill();
-        }
-
-        // 5. Checkerboard overlay — high-contrast grid
-        ctx.globalAlpha = 0.08;
-        var gridSize = 30;
-        for (var gx = 0; gx < W; gx += gridSize * 2) {
-          for (var gy = 0; gy < H; gy += gridSize * 2) {
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(gx, gy, gridSize, gridSize);
-            ctx.fillRect(gx + gridSize, gy + gridSize, gridSize, gridSize);
+          // — mouse repulsion —
+          var dx = d.x - mouseX;
+          var dy = d.y - mouseY;
+          var dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < MOUSE_RADIUS && dist > 0.1) {
+            var strength = (1 - dist / MOUSE_RADIUS) * MOUSE_FORCE;
+            d.x += (dx / dist) * strength;
+            d.y += (dy / dist) * strength;
           }
-        }
-        ctx.globalAlpha = 1;
 
+          // — base drift —
+          d.x += d.vx;
+          d.y += d.vy;
+
+          // — gentle sine wobble —
+          d.x += Math.sin(t * 0.0005 + d.phase) * 0.15;
+          d.y += Math.cos(t * 0.0004 + d.phase * 1.3) * 0.15;
+
+          // — wrap around edges with padding —
+          var pad = d.r + 5;
+          if (d.x < -pad)  d.x = W + pad;
+          if (d.x > W + pad) d.x = -pad;
+          if (d.y < -pad)  d.y = H + pad;
+          if (d.y > H + pad) d.y = -pad;
+
+          // — draw —
+          ctx.globalAlpha = d.alpha;
+          ctx.beginPath();
+          ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+          ctx.fillStyle = d.color;
+          ctx.fill();
+        }
+
+        ctx.globalAlpha = 1;
         requestAnimationFrame(draw);
       }
       draw();
