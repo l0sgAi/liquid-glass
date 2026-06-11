@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Liquid Glass — Login</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      color: #fff;
+      -webkit-font-smoothing: antialiased;
+      background: #050510;
+    }
+
+    #bg-canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+    }
+
+    /* ═══ Form overlay — sits inside the Shader container ═══ */
+    #login-form {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 44px 36px;
+      pointer-events: auto;
+      z-index: 2;
+    }
+
+    .form-logo {
+      width: 50px;
+      height: 50px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 18px;
+      animation: formFadeIn 0.6s ease 0.3s both;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+
+    .form-logo svg { width: 24px; height: 24px; }
+
+    .form-title {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 4px;
+      animation: formFadeIn 0.6s ease 0.4s both;
+      text-shadow: 0 2px 16px rgba(0, 0, 0, 0.3);
+    }
+
+    .form-subtitle {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.5);
+      margin-bottom: 30px;
+      animation: formFadeIn 0.6s ease 0.45s both;
+      text-shadow: 0 1px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    @keyframes formFadeIn {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .input-group {
+      width: 100%;
+      position: relative;
+      margin-bottom: 14px;
+      animation: formFadeIn 0.6s ease 0.5s both;
+    }
+    .input-group:nth-of-type(2) { animation-delay: 0.55s; }
+
+    .input-icon {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 18px;
+      height: 18px;
+      opacity: 0.4;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    .input-group:focus-within .input-icon { opacity: 0.75; }
+
+    .input-field {
+      width: 100%;
+      padding: 13px 46px 13px 44px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.06);
+      color: #fff;
+      font-size: 16px;
+      font-family: inherit;
+      outline: none;
+      transition: all 0.35s ease;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+    .input-field::placeholder { color: rgba(255, 255, 255, 0.3); }
+    .input-field:focus {
+      border-color: rgba(255, 255, 255, 0.35);
+      background: rgba(255, 255, 255, 0.1);
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.06), 0 0 20px rgba(255, 255, 255, 0.06);
+    }
+
+    .toggle-password {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer; padding: 4px; opacity: 0.35; transition: opacity 0.3s;
+    }
+    .toggle-password:hover { opacity: 0.75; }
+    .toggle-password svg { width: 18px; height: 18px; fill: none; stroke: #fff; stroke-width: 1.5; }
+
+    .options-row {
+      width: 100%; display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 20px; font-size: 12.5px; animation: formFadeIn 0.6s ease 0.6s both;
+    }
+    .remember-me {
+      display: flex; align-items: center; gap: 6px; cursor: pointer;
+      color: rgba(255,255,255,0.5); user-select: none;
+    }
+    .remember-me input[type="checkbox"] {
+      appearance: none; width: 15px; height: 15px;
+      border: 1px solid rgba(255,255,255,0.2); border-radius: 4px;
+      background: rgba(255,255,255,0.05); cursor: pointer; position: relative; transition: all 0.2s;
+    }
+    .remember-me input[type="checkbox"]:checked {
+      background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.4);
+    }
+    .remember-me input[type="checkbox"]:checked::after {
+      content: '✓'; position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center; font-size: 10px; color: #fff;
+    }
+    .forgot-link { color: rgba(255,255,255,0.5); text-decoration: none; transition: color 0.2s; }
+    .forgot-link:hover { color: rgba(255,255,255,0.8); }
+
+    .submit-btn {
+      width: 100%; padding: 14px; border: 1px solid rgba(255,255,255,0.15); border-radius: 14px;
+      background: rgba(255,255,255,0.12); color: #fff; font-size: 15px; font-weight: 600;
+      font-family: inherit; letter-spacing: 0.3px; cursor: pointer; transition: all 0.35s ease;
+      position: relative; overflow: hidden; animation: formFadeIn 0.6s ease 0.65s both;
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    }
+    .submit-btn:hover {
+      background: rgba(255,255,255,0.2); transform: translateY(-1px);
+      box-shadow: 0 6px 24px rgba(255,255,255,0.1);
+    }
+    .submit-btn:active { transform: translateY(0) scale(0.98); }
+    .submit-btn .shimmer {
+      position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent); transition: none;
+    }
+    .submit-btn.loading .shimmer { animation: shimmer 1.2s ease infinite; }
+    @keyframes shimmer { to { left: 100%; } }
+
+    .divider {
+      width: 100%; display: flex; align-items: center; gap: 14px;
+      margin: 22px 0 18px; animation: formFadeIn 0.6s ease 0.7s both;
+    }
+    .divider::before, .divider::after {
+      content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.1);
+    }
+    .divider span { font-size: 11.5px; color: rgba(255,255,255,0.3); white-space: nowrap; }
+
+    .social-row {
+      display: flex; gap: 12px; margin-bottom: 22px; animation: formFadeIn 0.6s ease 0.75s both;
+    }
+    .social-btn {
+      width: 50px; height: 50px; border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05);
+      display: flex; align-items: center; justify-content: center; cursor: pointer;
+      transition: all 0.3s ease; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    }
+    .social-btn:hover {
+      background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.25); transform: translateY(-2px);
+    }
+    .social-btn svg { width: 19px; height: 19px; }
+
+    .form-footer {
+      font-size: 12.5px; color: rgba(255,255,255,0.35); animation: formFadeIn 0.6s ease 0.8s both;
+    }
+    .form-footer a { color: rgba(255,255,255,0.7); text-decoration: none; font-weight: 500; transition: color 0.2s; }
+    .form-footer a:hover { color: #fff; }
+
+    .original-glass-label {
+      position: fixed; z-index: 9997; padding: 4px 12px; border-radius: 8px;
+      background: rgba(0,0,0,0.5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      font-size: 11px; color: rgba(255,255,255,0.7); white-space: nowrap; pointer-events: none;
+    }
+
+    @media (max-width: 500px) {
+      #login-form { padding: 32px 22px; }
+      .form-title { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="bg-canvas"></canvas>
+
+  <script>
+  (function() {
+    'use strict';
+
+    // ═══════════════════════════════════════════════════
+    // Utility Functions — copied verbatim from liquid-glass.js
+    // ═══════════════════════════════════════════════════
+    function smoothStep(a, b, t) {
+      t = Math.max(0, Math.min(1, (t - a) / (b - a)));
+      return t * t * (3 - 2 * t);
+    }
+
+    function length(x, y) {
+      return Math.sqrt(x * x + y * y);
+    }
+
+    function roundedRectSDF(x, y, width, height, radius) {
+      var qx = Math.abs(x) - width + radius;
+      var qy = Math.abs(y) - height + radius;
+      return Math.min(Math.max(qx, qy), 0) + length(Math.max(qx, 0), Math.max(qy, 0)) - radius;
+    }
+
+    function texture(x, y) {
+      return { type: 't', x: x, y: y };
+    }
+
+    function generateId() {
+      return 'liquid-glass-' + Math.random().toString(36).substr(2, 9);
+    }
+
+    // ═══════════════════════════════════════════════════
+    // Shader Class — copied from liquid-glass.js
+    // Uses position:fixed directly on body, same as original
+    // ═══════════════════════════════════════════════════
+    function Shader(options) {
+      options = options || {};
+      this.width = options.width || 100;
+      this.height = options.height || 100;
+      this.fragment = options.fragment || function(uv) { return texture(uv.x, uv.y); };
+      this.canvasDPI = 1;
+      this.id = generateId();
+
+      this.createElement();
+      this.updateShader();
+    }
+
+    Shader.prototype.createElement = function() {
+      // Container — EXACTLY like original: position:fixed on body
+      this.container = document.createElement('div');
+      this.container.style.cssText =
+        'position:fixed;' +
+        'top:50%;' +
+        'left:50%;' +
+        'transform:translate(-50%,-50%);' +
+        'width:' + this.width + 'px;' +
+        'height:' + this.height + 'px;' +
+        'overflow:hidden;' +
+        'border-radius:48px;' +
+        'box-shadow:0 8px 60px rgba(0,0,0,0.4),0 0 0 1px rgba(255,255,255,0.12),inset 0 1px 0 rgba(255,255,255,0.2),inset 0 -1px 0 rgba(255,255,255,0.05);' +
+        'cursor:default;' +
+        'backdrop-filter:url(#' + this.id + '_filter) blur(0.5px) contrast(1.25) brightness(1.08) saturate(1.3);' +
+        '-webkit-backdrop-filter:url(#' + this.id + '_filter) blur(0.5px) contrast(1.25) brightness(1.08) saturate(1.3);' +
+        'z-index:100;' +
+        'pointer-events:auto;' +
+        'background:rgba(255,255,255,0.04);';
+
+      // Specular highlight — matches original's visual style
+      var highlight = document.createElement('div');
+      highlight.style.cssText =
+        'position:absolute;inset:0;border-radius:48px;pointer-events:none;z-index:3;' +
+        'background:radial-gradient(ellipse 60% 30% at 30% 15%,rgba(255,255,255,0.22),transparent 70%),' +
+        'radial-gradient(ellipse 40% 20% at 75% 80%,rgba(255,255,255,0.06),transparent 60%);' +
+        'border:1px solid rgba(255,255,255,0.1);border-top-color:rgba(255,255,255,0.25);border-left-color:rgba(255,255,255,0.15);';
+      this.container.appendChild(highlight);
+
+      // SVG filter — EXACTLY like original: position:fixed on body
+      this.svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      this.svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      this.svg.setAttribute('width', '0');
+      this.svg.setAttribute('height', '0');
+      this.svg.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none;z-index:99;';
+
+      var defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+      var filter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+      filter.setAttribute('id', this.id + '_filter');
+      filter.setAttribute('filterUnits', 'userSpaceOnUse');
+      filter.setAttribute('colorInterpolationFilters', 'sRGB');
+      filter.setAttribute('x', '0');
+      filter.setAttribute('y', '0');
+      filter.setAttribute('width', this.width.toString());
+      filter.setAttribute('height', this.height.toString());
+
+      this.feImage = document.createElementNS('http://www.w3.org/2000/svg', 'feImage');
+      this.feImage.setAttribute('id', this.id + '_map');
+      this.feImage.setAttribute('width', this.width.toString());
+      this.feImage.setAttribute('height', this.height.toString());
+
+      this.feDisplacementMap = document.createElementNS('http://www.w3.org/2000/svg', 'feDisplacementMap');
+      this.feDisplacementMap.setAttribute('in', 'SourceGraphic');
+      this.feDisplacementMap.setAttribute('in2', this.id + '_map');
+      this.feDisplacementMap.setAttribute('xChannelSelector', 'R');
+      this.feDisplacementMap.setAttribute('yChannelSelector', 'G');
+
+      filter.appendChild(this.feImage);
+      filter.appendChild(this.feDisplacementMap);
+      defs.appendChild(filter);
+      this.svg.appendChild(defs);
+
+      // Hidden canvas — EXACTLY like original
+      this.canvas = document.createElement('canvas');
+      this.canvas.width = this.width * this.canvasDPI;
+      this.canvas.height = this.height * this.canvasDPI;
+      this.canvas.style.display = 'none';
+      this.context = this.canvas.getContext('2d');
+    };
+
+    // updateShader — copied verbatim from liquid-glass.js
+    Shader.prototype.updateShader = function() {
+      var w = this.width * this.canvasDPI;
+      var h = this.height * this.canvasDPI;
+      var data = new Uint8ClampedArray(w * h * 4);
+
+      var maxScale = 0;
+      var rawValues = [];
+
+      for (var i = 0; i < data.length; i += 4) {
+        var x = (i / 4) % w;
+        var y = Math.floor(i / 4 / w);
+        var pos = this.fragment({ x: x / w, y: y / h });
+        var dx = pos.x * w - x;
+        var dy = pos.y * h - y;
+        maxScale = Math.max(maxScale, Math.abs(dx), Math.abs(dy));
+        rawValues.push(dx, dy);
+      }
+
+      maxScale *= 0.5;
+      if (maxScale < 0.001) maxScale = 1;
+
+      var index = 0;
+      for (var j = 0; j < data.length; j += 4) {
+        var r = rawValues[index++] / maxScale + 0.5;
+        var g = rawValues[index++] / maxScale + 0.5;
+        data[j]     = r * 255;
+        data[j + 1] = g * 255;
+        data[j + 2] = 0;
+        data[j + 3] = 255;
+      }
+
+      this.context.putImageData(new ImageData(data, w, h), 0, 0);
+      this.feImage.setAttributeNS('http://www.w3.org/1999/xlink', 'href', this.canvas.toDataURL());
+      this.feDisplacementMap.setAttribute('scale', (maxScale / this.canvasDPI).toString());
+    };
+
+    // appendTo — copied from original: appends to document.body directly
+    Shader.prototype.appendTo = function(parent) {
+      parent.appendChild(this.svg);
+      parent.appendChild(this.container);
+    };
+
+    Shader.prototype.destroy = function() {
+      this.svg.remove();
+      this.container.remove();
+      this.canvas.remove();
+    };
+
+    // ═══════════════════════════════════════════════════
+    // Animated Background — sharp, vivid, no blur
+    // Colorful geometric shapes with hard edges so
+    // the liquid glass refraction is clearly visible
+    // ═══════════════════════════════════════════════════
+    function initBackground() {
+      var canvas = document.getElementById('bg-canvas');
+      var ctx = canvas.getContext('2d');
+      var W, H;
+
+      function resize() {
+        W = canvas.width = window.innerWidth;
+        H = canvas.height = window.innerHeight;
+      }
+      resize();
+      window.addEventListener('resize', resize);
+
+      // Colorful circles — solid fill, no blur, slow drift
+      var circles = [];
+      var colors = [
+        '#ff2878', '#3c78ff', '#8c32ff', '#00dcc8',
+        '#ffa028', '#32ff82', '#ff50dc', '#1e50ff',
+        '#ff4444', '#44ff44', '#ffff00', '#ff8800'
+      ];
+      for (var i = 0; i < 18; i++) {
+        circles.push({
+          x: Math.random(), y: Math.random(),
+          r: 30 + Math.random() * 60,
+          color: colors[i % colors.length],
+          vx: (Math.random() - 0.5) * 0.0004,
+          vy: (Math.random() - 0.5) * 0.0004,
+          phase: Math.random() * Math.PI * 2
+        });
+      }
+
+      // Floating rings — hollow circles with thick stroke
+      var rings = [];
+      for (var r = 0; r < 10; r++) {
+        rings.push({
+          x: Math.random(), y: Math.random(),
+          r: 40 + Math.random() * 50,
+          color: colors[(r + 4) % colors.length],
+          vx: (Math.random() - 0.5) * 0.0003,
+          vy: (Math.random() - 0.5) * 0.0003,
+          lw: 3 + Math.random() * 4
+        });
+      }
+
+      // Small dots — dense, creating a pattern
+      var dots = [];
+      for (var d = 0; d < 120; d++) {
+        dots.push({
+          x: Math.random(), y: Math.random(),
+          r: 2 + Math.random() * 4,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          vx: (Math.random() - 0.5) * 0.0003,
+          vy: (Math.random() - 0.5) * 0.0003
+        });
+      }
+
+      // Diagonal stripes (drawn as thick lines)
+      var stripes = [];
+      for (var s = 0; s < 8; s++) {
+        stripes.push({
+          y: Math.random(),
+          color: colors[(s + 2) % colors.length],
+          lw: 8 + Math.random() * 12,
+          speed: 0.00005 + Math.random() * 0.0001,
+          phase: Math.random() * Math.PI * 2
+        });
+      }
+
+      function wrap(v) { return ((v % 1) + 1) % 1; }
+
+      function draw() {
+        var t = performance.now();
+
+        // Dark base
+        ctx.fillStyle = '#0a0a1a';
+        ctx.fillRect(0, 0, W, H);
+
+        // 1. Diagonal stripes — large colorful bands
+        ctx.save();
+        ctx.globalAlpha = 0.6;
+        for (var si = 0; si < stripes.length; si++) {
+          var st = stripes[si];
+          var sy = wrap(st.y + t * st.speed) * H;
+          ctx.strokeStyle = st.color;
+          ctx.lineWidth = st.lw;
+          ctx.beginPath();
+          ctx.moveTo(0, sy);
+          ctx.lineTo(W, sy - W * 0.3 + Math.sin(t * 0.0003 + st.phase) * 40);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+        ctx.restore();
+
+        // 2. Solid circles — hard-edged, vivid
+        for (var ci = 0; ci < circles.length; ci++) {
+          var c = circles[ci];
+          c.x = wrap(c.x + c.vx);
+          c.y = wrap(c.y + c.vy);
+          var pulse = 1 + 0.15 * Math.sin(t * 0.002 + c.phase);
+          ctx.beginPath();
+          ctx.arc(c.x * W, c.y * H, c.r * pulse, 0, Math.PI * 2);
+          ctx.fillStyle = c.color;
+          ctx.fill();
+        }
+
+        // 3. Rings — hollow circles for extra contrast
+        for (var ri = 0; ri < rings.length; ri++) {
+          var rn = rings[ri];
+          rn.x = wrap(rn.x + rn.vx);
+          rn.y = wrap(rn.y + rn.vy);
+          ctx.beginPath();
+          ctx.arc(rn.x * W, rn.y * H, rn.r, 0, Math.PI * 2);
+          ctx.strokeStyle = rn.color;
+          ctx.lineWidth = rn.lw;
+          ctx.stroke();
+        }
+
+        // 4. Small dots — dense colorful pattern
+        for (var di = 0; di < dots.length; di++) {
+          var dt = dots[di];
+          dt.x = wrap(dt.x + dt.vx);
+          dt.y = wrap(dt.y + dt.vy);
+          ctx.beginPath();
+          ctx.arc(dt.x * W, dt.y * H, dt.r, 0, Math.PI * 2);
+          ctx.fillStyle = dt.color;
+          ctx.fill();
+        }
+
+        // 5. Checkerboard overlay — high-contrast grid
+        ctx.globalAlpha = 0.08;
+        var gridSize = 30;
+        for (var gx = 0; gx < W; gx += gridSize * 2) {
+          for (var gy = 0; gy < H; gy += gridSize * 2) {
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(gx, gy, gridSize, gridSize);
+            ctx.fillRect(gx + gridSize, gy + gridSize, gridSize, gridSize);
+          }
+        }
+        ctx.globalAlpha = 1;
+
+        requestAnimationFrame(draw);
+      }
+      draw();
+    }
+
+    // ═══════════════════════════════════════════════════
+    // Form HTML
+    // ═══════════════════════════════════════════════════
+    function buildFormHTML() {
+      return '\
+        <div class="form-logo">\
+          <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">\
+            <path d="M12 2L2 7l10 5 10-5-10-5z"/>\
+            <path d="M2 17l10 5 10-5"/>\
+            <path d="M2 12l10 5 10-5"/>\
+          </svg>\
+        </div>\
+        <h1 class="form-title">Welcome Back</h1>\
+        <p class="form-subtitle">Sign in to continue</p>\
+        <form id="loginForm" autocomplete="off">\
+          <div class="input-group">\
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">\
+              <rect x="2" y="4" width="20" height="16" rx="3"/>\
+              <path d="M22 7l-10 5L2 7"/>\
+            </svg>\
+            <input type="email" class="input-field" placeholder="Email address" required>\
+          </div>\
+          <div class="input-group">\
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">\
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>\
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>\
+            </svg>\
+            <input type="password" class="input-field" id="passwordField" placeholder="Password" required>\
+            <button type="button" class="toggle-password" id="togglePassword" aria-label="Toggle password visibility">\
+              <svg id="eyeIcon" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">\
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>\
+                <circle cx="12" cy="12" r="3"/>\
+              </svg>\
+            </button>\
+          </div>\
+          <div class="options-row">\
+            <label class="remember-me">\
+              <input type="checkbox">\
+              <span>Remember me</span>\
+            </label>\
+            <a href="#" class="forgot-link">Forgot password?</a>\
+          </div>\
+          <button type="submit" class="submit-btn">\
+            <span class="shimmer"></span>\
+            Sign In\
+          </button>\
+        </form>\
+        <div class="divider"><span>or continue with</span></div>\
+        <div class="social-row">\
+          <button type="button" class="social-btn" aria-label="Sign in with Google">\
+            <svg viewBox="0 0 24 24">\
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>\
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>\
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>\
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>\
+            </svg>\
+          </button>\
+          <button type="button" class="social-btn" aria-label="Sign in with GitHub">\
+            <svg viewBox="0 0 24 24" fill="#fff">\
+              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>\
+            </svg>\
+          </button>\
+          <button type="button" class="social-btn" aria-label="Sign in with Apple">\
+            <svg viewBox="0 0 24 24" fill="#fff">\
+              <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>\
+            </svg>\
+          </button>\
+        </div>\
+        <p class="form-footer">\
+          Don\'t have an account? <a href="#">Sign up</a>\
+        </p>';
+    }
+
+    // ═══════════════════════════════════════════════════
+    // Form Interaction Handlers
+    // ═══════════════════════════════════════════════════
+    function initFormHandlers() {
+      var toggleBtn = document.getElementById('togglePassword');
+      var passwordField = document.getElementById('passwordField');
+      var eyeIcon = document.getElementById('eyeIcon');
+
+      if (toggleBtn && passwordField) {
+        toggleBtn.addEventListener('click', function() {
+          var isHidden = passwordField.type === 'password';
+          passwordField.type = isHidden ? 'text' : 'password';
+          eyeIcon.innerHTML = isHidden
+            ? '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>'
+            : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+        });
+      }
+
+      var form = document.getElementById('loginForm');
+      if (form) {
+        form.addEventListener('submit', function(e) {
+          e.preventDefault();
+          var btn = form.querySelector('.submit-btn');
+          btn.classList.add('loading');
+          btn.innerHTML = '<span class="shimmer"></span>Signing in...';
+          setTimeout(function() {
+            btn.classList.remove('loading');
+            btn.innerHTML = '✓ Welcome!';
+            btn.style.background = 'rgba(100, 255, 180, 0.2)';
+            btn.style.borderColor = 'rgba(100, 255, 180, 0.3)';
+            setTimeout(function() {
+              btn.innerHTML = '<span class="shimmer"></span>Sign In';
+              btn.style.background = '';
+              btn.style.borderColor = '';
+            }, 2000);
+          }, 1800);
+        });
+      }
+    }
+
+    // ═══════════════════════════════════════════════════
+    // Original liquid-glass.js — 300×200 draggable glass
+    // ═══════════════════════════════════════════════════
+    function initOriginalGlass() {
+      var ogW = 300, ogH = 200;
+      var ogId = generateId();
+
+      var container = document.createElement('div');
+      container.style.cssText =
+        'position:fixed;bottom:60px;right:60px;' +
+        'width:' + ogW + 'px;height:' + ogH + 'px;' +
+        'overflow:hidden;border-radius:150px;' +
+        'box-shadow:0 4px 8px rgba(0,0,0,0.25),0 -10px 25px inset rgba(0,0,0,0.15);' +
+        'cursor:grab;' +
+        'backdrop-filter:url(#' + ogId + '_filter) blur(0.25px) contrast(1.2) brightness(1.05) saturate(1.1);' +
+        '-webkit-backdrop-filter:url(#' + ogId + '_filter) blur(0.25px) contrast(1.2) brightness(1.05) saturate(1.1);' +
+        'z-index:9999;pointer-events:auto;';
+
+      // Label
+      var label = document.createElement('div');
+      label.className = 'original-glass-label';
+      label.textContent = 'liquid-glass.js (原版)';
+      label.style.cssText = 'position:fixed;bottom:' + (60 + ogH + 10) + 'px;right:60px;transform:none;';
+
+      // SVG filter
+      var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      svg.setAttribute('width', '0');
+      svg.setAttribute('height', '0');
+      svg.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none;z-index:9998;';
+
+      var defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+      var filter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+      filter.setAttribute('id', ogId + '_filter');
+      filter.setAttribute('filterUnits', 'userSpaceOnUse');
+      filter.setAttribute('colorInterpolationFilters', 'sRGB');
+      filter.setAttribute('x', '0'); filter.setAttribute('y', '0');
+      filter.setAttribute('width', String(ogW)); filter.setAttribute('height', String(ogH));
+
+      var feImage = document.createElementNS('http://www.w3.org/2000/svg', 'feImage');
+      feImage.setAttribute('id', ogId + '_map');
+      feImage.setAttribute('width', String(ogW)); feImage.setAttribute('height', String(ogH));
+
+      var feDM = document.createElementNS('http://www.w3.org/2000/svg', 'feDisplacementMap');
+      feDM.setAttribute('in', 'SourceGraphic');
+      feDM.setAttribute('in2', ogId + '_map');
+      feDM.setAttribute('xChannelSelector', 'R');
+      feDM.setAttribute('yChannelSelector', 'G');
+
+      filter.appendChild(feImage);
+      filter.appendChild(feDM);
+      defs.appendChild(filter);
+      svg.appendChild(defs);
+
+      var canvas = document.createElement('canvas');
+      canvas.width = ogW; canvas.height = ogH; canvas.style.display = 'none';
+      var ctx = canvas.getContext('2d');
+
+      // ORIGINAL fragment shader — exact copy from liquid-glass.js
+      var w = ogW, h = ogH;
+      var data = new Uint8ClampedArray(w * h * 4);
+      var maxScale = 0;
+      var rawValues = [];
+      for (var i = 0; i < data.length; i += 4) {
+        var px = (i / 4) % w;
+        var py = Math.floor(i / 4 / w);
+        var ix = px / w - 0.5;
+        var iy = py / h - 0.5;
+        var dte = roundedRectSDF(ix, iy, 0.3, 0.2, 0.6);
+        var disp = smoothStep(0.8, 0, dte - 0.15);
+        var sc = smoothStep(0, 1, disp);
+        var pos = texture(ix * sc + 0.5, iy * sc + 0.5);
+        var dx = pos.x * w - px;
+        var dy = pos.y * h - py;
+        maxScale = Math.max(maxScale, Math.abs(dx), Math.abs(dy));
+        rawValues.push(dx, dy);
+      }
+      maxScale *= 0.5;
+      if (maxScale < 0.001) maxScale = 1;
+      var idx = 0;
+      for (var j = 0; j < data.length; j += 4) {
+        data[j]     = (rawValues[idx++] / maxScale + 0.5) * 255;
+        data[j + 1] = (rawValues[idx++] / maxScale + 0.5) * 255;
+        data[j + 2] = 0;
+        data[j + 3] = 255;
+      }
+      ctx.putImageData(new ImageData(data, w, h), 0, 0);
+      feImage.setAttributeNS('http://www.w3.org/1999/xlink', 'href', canvas.toDataURL());
+      feDM.setAttribute('scale', String(maxScale));
+
+      // Drag behavior
+      var isDragging = false, startX, startY, initialX, initialY;
+      container.addEventListener('mousedown', function(e) {
+        isDragging = true; container.style.cursor = 'grabbing';
+        startX = e.clientX; startY = e.clientY;
+        var rect = container.getBoundingClientRect();
+        initialX = rect.left; initialY = rect.top;
+        e.preventDefault();
+      });
+      document.addEventListener('mousemove', function(e) {
+        if (!isDragging) return;
+        var nx = Math.max(10, Math.min(window.innerWidth - ogW - 10, initialX + e.clientX - startX));
+        var ny = Math.max(10, Math.min(window.innerHeight - ogH - 10, initialY + e.clientY - startY));
+        container.style.left = nx + 'px'; container.style.top = ny + 'px';
+        container.style.bottom = 'auto'; container.style.right = 'auto';
+        label.style.left = (nx + ogW / 2) + 'px'; label.style.top = (ny - 26) + 'px';
+        label.style.bottom = 'auto'; label.style.right = 'auto'; label.style.transform = 'translateX(-50%)';
+      });
+      document.addEventListener('mouseup', function() {
+        if (isDragging) { isDragging = false; container.style.cursor = 'grab'; }
+      });
+
+      document.body.appendChild(svg);
+      document.body.appendChild(container);
+      document.body.appendChild(label);
+    }
+
+    // ═══════════════════════════════════════════════════
+    // Initialize — match original's pattern exactly
+    // ═══════════════════════════════════════════════════
+    function init() {
+      // 1. Start animated background
+      initBackground();
+
+      // 2. Create login card shader — using ORIGINAL's fragment shader
+      //    adapted for 420×540 card aspect ratio
+      var cardW = 420, cardH = 540;
+
+      var shader = new Shader({
+        width: cardW,
+        height: cardH,
+        // Fragment shader — uses the ORIGINAL liquid-glass.js algorithm
+        // SDF params scaled for card aspect ratio while keeping strong refraction
+        fragment: function(uv) {
+          var ix = uv.x - 0.5;
+          var iy = uv.y - 0.5;
+
+          var distanceToEdge = roundedRectSDF(
+            ix,
+            iy,
+            0.3,   // halfW — same as original, leaves wide margin for gradient
+            0.35,  // halfH — scaled for portrait card
+            0.1    // radius
+          );
+          var displacement = smoothStep(0.5, 0, distanceToEdge - 0.1);
+          var scaled = smoothStep(0, 1, displacement);
+          return texture(ix * scaled + 0.5, iy * scaled + 0.5);
+        }
+      });
+
+      // Append directly to body — same as original
+      shader.appendTo(document.body);
+
+      // 3. Inject form into the glass container
+      var formEl = document.createElement('div');
+      formEl.id = 'login-form';
+      formEl.innerHTML = buildFormHTML();
+      shader.container.appendChild(formEl);
+
+      // 4. Init form interactions
+      initFormHandlers();
+
+      // 5. Add original glass for comparison
+      initOriginalGlass();
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  })();
+  </script>
+</body>
+</html>
